@@ -1,0 +1,29 @@
+# Dependencies
+.opencode/node_modules/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Scratch (throwaway, reproducible from investigation state)
+tmp/experiments/
+tmp/validation/
+
+# Keep tracked structure (remove a line if that dir should stay ignored)
+!assets/.gitkeep
+!plans/.gitkeep
+!src/python/.gitkeep
+!src/pinescript/.gitkeep

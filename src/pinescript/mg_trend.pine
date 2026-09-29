@@ -1,0 +1,119 @@
+//@version=6
+// mg-trend H5-minimal core — Pine v6 mirror (IMPLEMENTED).
+// Hypothesis: H5-minimal (plans/mg-trend/hypotheses.md H5). Status: SUPPORTED
+// (Gate D pass: fit 3/3 rmse 0.3777; held-out 18/18, RMSE 5/6, hw 3/3;
+// VALIDATED pending validator-only, never claimed here). Python truth:
+// src/python/mg_trend.py. Byte-equiv math: SMA-seed EMA (manual — ta.ema
+// seeds differently), TR/ATR-SMA, cross-trigger state, g=1 gap.
+// No triangles (H4 DEFERRED, do NOT plot arrows). No band-break rule
+// (H1-P1.3 KILLED). No Stdev envelope (superseded).
+// Locked defaults (BEST-H5, do NOT retune): S=hl2, MAf=5, MAs=60, EMA,
+// ATR-SMA N=10, m=1.5, g=1. Guard OFF. Slow-leg central.
+// Provenance: Yahoo Daily 2024-01-02 to 2026-09-25.
+// Unknowns (stay UNKNOWN): 2h session definition, repaint beyond
+// confirmed-close, LINE7-12 unused.
+// RENDERING NOTE (platform constraint, for validator): plot() has no dashed
+// style, so LINE5/LINE6 are thin solid purple. Numeric mirror is exact;
+// dash texture differs by platform. Classify any dash-texture diff as
+// RENDERING, never MATH.
+// Pine v6 compliance: zero if/for blocks (ternary-only logic), zero UDFs,
+// no type annotations, single-line ternaries only, real statements precede
+// every construct. See .opencode/pine_v6_lessons.md.
+indicator("MG-Trend H5-minimal", shorttitle="MG-Trend", overlay=true)
+
+// Locked inputs (BEST-H5 defaults; do NOT retune)
+srcSel = input.string("hl2", "Source", options=["hl2", "close", "hlc3"])
+mafLen = input.int(5, "Fast MA length", minval=1)
+masLen = input.int(60, "Slow MA length", minval=2)
+maType = input.string("EMA", "MA type", options=["EMA", "SMA"])
+atrLen = input.int(10, "ATR length", minval=1)
+mult = input.float(1.5, "ATR multiplier", minval=0.0, step=0.1)
+gapLen = input.int(1, "Gap bars", minval=1, maxval=2)
+
+// Source (hl2 default; close/hlc3 for parity with Python source_series)
+isCloseSrc = srcSel == "close"
+isHlc3Src = srcSel == "hlc3"
+srcHlc = (isHlc3Src ? hlc3 : hl2)
+src = (isCloseSrc ? close : srcHlc)
+
+// Fast/slow MAs with SMA seed (manual recursion; ta.ema seeds differently)
+kFast = 2.0 / (mafLen + 1)
+kSlow = 2.0 / (masLen + 1)
+dropFast = (bar_index >= mafLen ? nz(src[mafLen], 0.0) : 0.0)
+fastWinSum = 0.0
+fastWinSum := nz(fastWinSum[1], 0.0) + src - dropFast
+fastSma = (bar_index >= mafLen - 1 ? fastWinSum / mafLen : na)
+fastEma = float(na)
+fastUp = src * kFast + nz(fastEma[1]) * (1.0 - kFast)
+fastIsSeed = bar_index == mafLen - 1
+fastIsPast = bar_index > mafLen - 1
+fastSeedPart = (fastIsSeed ? fastWinSum / mafLen : na)
+fastPastPart = (fastIsPast ? fastUp : na)
+fastEma := (fastIsSeed ? fastSeedPart : fastPastPart)
+dropSlow = (bar_index >= masLen ? nz(src[masLen], 0.0) : 0.0)
+slowWinSum = 0.0
+slowWinSum := nz(slowWinSum[1], 0.0) + src - dropSlow
+slowSma = (bar_index >= masLen - 1 ? slowWinSum / masLen : na)
+slowEma = float(na)
+slowUp = src * kSlow + nz(slowEma[1]) * (1.0 - kSlow)
+slowIsSeed = bar_index == masLen - 1
+slowIsPast = bar_index > masLen - 1
+slowSeedPart = (slowIsSeed ? slowWinSum / masLen : na)
+slowPastPart = (slowIsPast ? slowUp : na)
+slowEma := (slowIsSeed ? slowSeedPart : slowPastPart)
+isSmaType = maType == "SMA"
+maf = (isSmaType ? fastSma : fastEma)
+mas = (isSmaType ? slowSma : slowEma)
+
+// True range + ATR-SMA (SMA variant only; Wilder excluded per H5-minimal)
+prevClose = nz(close[1], close)
+trng = math.max(high - low, math.max(math.abs(high - prevClose), math.abs(low - prevClose)))
+dropTr = (bar_index >= atrLen ? nz(trng[atrLen], 0.0) : 0.0)
+trWinSum = 0.0
+trWinSum := nz(trWinSum[1], 0.0) + trng - dropTr
+atrSma = (bar_index >= atrLen - 1 ? trWinSum / atrLen : na)
+
+// Cross-trigger state (H2-P2.2 verbatim, eps=0, guard OFF, slow-leg central)
+warm = math.max(mafLen, math.max(masLen, atrLen))
+maDiff = maf - mas
+ready = bar_index >= warm and not na(maf) and not na(mas) and not na(atrSma)
+prevDiff = float(na)
+pending = 0
+st = 0
+prevDiffPrev = prevDiff[1]
+pendPrev = nz(pending[1], 0)
+hadPrev = not na(prevDiffPrev)
+bothNonZero = hadPrev and prevDiffPrev != 0 and not na(maDiff) and maDiff != 0
+isCrossUp = bothNonZero and prevDiffPrev < 0 and maDiff > 0
+isCrossDn = bothNonZero and prevDiffPrev > 0 and maDiff < 0
+isCross = isCrossUp or isCrossDn
+isZero = not na(maDiff) and maDiff == 0
+isPend = pendPrev > 0
+gapNow = isPend or isZero or isCross
+dirUp = not na(maDiff) and maDiff > 0
+dirVal = (dirUp ? 1 : -1)
+stNext = (gapNow ? 0 : dirVal)
+retrig = (isPend and isCross ? 1 : 0)
+gapArm = (not isPend and isCross and gapLen == 2 ? 1 : 0)
+pendNext = retrig + gapArm
+effGap = (not ready) or gapNow
+st := (effGap ? 0 : stNext)
+central = float(na)
+central := (effGap ? na : mas)
+upper = float(na)
+lower = float(na)
+upper := (ready ? mas + mult * atrSma : na)
+lower := (ready ? mas - mult * atrSma : na)
+pending := (ready ? pendNext : nz(pending[1], 0))
+prevDiff := (ready ? maDiff : prevDiff[1])
+
+// Display mapping (render only): LINE1/LINE3 red mid, LINE2/LINE4 green mid,
+// LINE5/LINE6 purple bands (solid-thin; see RENDERING NOTE), LINE7-12 unused.
+redMid = (st == 1 ? central : na)
+grnMid = (st == -1 ? central : na)
+plot(redMid, "LINE1", color.new(#E53935, 0), 4)
+plot(redMid, "LINE3", color.new(#C62828, 0), 2)
+plot(grnMid, "LINE2", color.new(#00A37A, 0), 4)
+plot(grnMid, "LINE4", color.new(#00695C, 0), 2)
+plot(upper, "LINE5", color.new(#7B1FA2, 0), 1)
+plot(lower, "LINE6", color.new(#7B1FA2, 0), 1)

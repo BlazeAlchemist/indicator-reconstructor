@@ -1,6 +1,12 @@
 ---
 description: Production implementation owner. Implements supported reconstructions deterministically (Python truth + Pine Script mirror). Tests and fixtures required.
 mode: subagent
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:

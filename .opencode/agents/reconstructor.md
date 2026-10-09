@@ -1,6 +1,12 @@
 ---
 description: Algorithm reconstruction owner. Formulates candidate indicator algorithms as testable hypotheses with evidence, unknowns, and falsification tests. Never implements production code.
 mode: subagent
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:

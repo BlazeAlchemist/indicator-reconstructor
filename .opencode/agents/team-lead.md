@@ -1,6 +1,12 @@
 ---
 description: Investigation orchestrator for indicator reconstruction. Owns stage tracking, gate enforcement, evidence discipline, and specialist assignment.
 mode: primary
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:

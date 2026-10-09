@@ -1,6 +1,12 @@
 ---
 description: Independent differential validator. Compares implementation output against reference numerically, structurally, and visually. Never modifies code under test.
 mode: subagent
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:

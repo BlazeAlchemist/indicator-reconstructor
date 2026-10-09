@@ -1,6 +1,12 @@
 ---
 description: Controlled experiment and calibration owner. Tests candidate algorithms with reproducible experiments. Throwaway code only, never production code.
 mode: subagent
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:

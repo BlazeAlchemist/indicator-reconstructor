@@ -1,6 +1,12 @@
 ---
 description: Reference and input analyst for indicator reconstruction. Extracts observable evidence from screenshots and determines input data requirements. Evidence only, never implements.
 mode: subagent
+      - action: "question"
+        resource: "*"
+        effect: "allow"
+      - action: "plan_enter"
+        resource: "*"
+        effect: "allow"
 permission:
   external_directory: deny
   bash:
